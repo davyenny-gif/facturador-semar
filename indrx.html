@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEMAR - Sistema de Facturación v2.0</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --azul:#0C3572;--azul2:#0a2a5c;--azul-cl:#e8f0fd;--azul-mid:#3a6bc9;
+    --verde:#0f6e56;--verde-cl:#e1f5ee;
+    --rojo:#a32d2d;--rojo-cl:#fff0f0;
+    --naranja:#ba7517;--naranja-cl:#faeeda;
+    --gris:#f0f4f8;--borde:#d8e2f0;
+    --txt:#1a1a2e;--txt2:#556;--txt3:#8899aa;
+    --shadow:0 2px 8px rgba(12,53,114,.1);
+    --radius:10px;
+  }
+  body{font-family:'DM Sans',sans-serif;background:#eef2f8;color:var(--txt);font-size:14px;min-height:100vh}
+
+  /* ── TOAST ── */
+  #toast{position:fixed;bottom:24px;right:24px;background:var(--azul);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transform:translateY(10px);transition:.3s;pointer-events:none}
+  #toast.show{opacity:1;transform:translateY(0)}
+
+  /* ── LOGIN ── */
+  #login-screen{position:fixed;inset:0;background:#0C3572;z-index:9999;display:flex;align-items:center;justify-content:center}
+  #login-screen.oculto{display:none}
+  .login-box{background:#fff;border-radius:16px;padding:40px 32px;width:90%;max-width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .login-logo{font-size:34px;font-weight:900;letter-spacing:4px;color:var(--azul);margin-bottom:4px}
+  .login-sub{font-size:12px;letter-spacing:1px;margin-bottom:28px;color:#888}
+  .login-box input[type=password]{width:100%;padding:13px 16px;border:1.5px solid var(--borde);border-radius:9px;font-size:16px;text-align:center;letter-spacing:4px;font-family:inherit;margin-bottom:14px;transition:border .15s}
+  .login-box input:focus{outline:none;border-color:var(--azul)}
+  .login-btn{width:100%;padding:13px;background:var(--azul);color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s}
+  .login-btn:hover{background:var(--azul2)}
+  .login-error{color:var(--rojo);font-size:13px;margin-top:12px;font-weight:600;display:none}
+  .login-version{font-size:10px;color:#bbb;margin-top:16px}
+
+  /* ── TOPBAR ── */
+  .topbar{background:var(--azul);color:#fff;padding:0 20px;display:flex;align-items:center;gap:14px;height:54px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(12,53,114,.3)}
+  .topbar img{height:36px;object-fit:contain}
+  .topbar nav{margin-left:auto;display:flex;gap:2px;flex-wrap:wrap}
+  .topbar nav button{background:transparent;border:none;color:#93b4e0;padding:7px 13px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;transition:all .15s;white-space:nowrap}
+  .topbar nav button:hover{background:rgba(255,255,255,.1);color:#fff}
+  .topbar nav button.active{background:rgba(255,255,255,.18);color:#fff}
+  .sync-badge{font-size:10px;background:rgba(255,255,255,.15);padding:2px 8px;border-radius:20px;color:#cde}
+
+  /* ── CONTENIDO ── */
+  .page{display:none;padding:20px;max-width:1050px;margin:0 auto}
+  .page.active{display:block}
+
+  /* ── MÉTRICAS ── */
+  .metricas{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+  .metrica{background:#fff;border-radius:var(--radius);padding:16px 18px;border:1px solid var(--borde);box-shadow:var(--shadow)}
+  .metrica .val{font-size:22px;font-weight:700;color:var(--azul);font-family:'DM Mono',monospace}
+  .metrica .lbl{font-size:11px;color:var(--txt3);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+
+  /* ── CARDS ── */
+  .card{background:#fff;border-radius:var(--radius);padding:18px 20px;margin-bottom:14px;border:1px solid var(--borde);box-shadow:var(--shadow)}
+  .card-titulo{font-size:11px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--borde);display:flex;align-items:center;gap:8px}
+
+  /* ── FORMULARIOS ── */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .campo{margin-bottom:10px}
+  .campo label{display:block;font-size:11px;color:var(--txt2);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+  .campo input,.campo select,.campo textarea{width:100%;padding:8px 11px;border:1px solid var(--borde);border-radius:7px;font-size:13px;color:var(--txt);font-family:inherit;transition:border .15s;background:#fff}
+  .campo input:focus,.campo select:focus,.campo textarea:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(12,53,114,.08)}
+  .campo textarea{resize:vertical;min-height:65px}
+  .span2{grid-column:span 2}
+
+  /* ── TABLA ÍTEMS ── */
+  .tabla-items{width:100%;border-collapse:collapse;font-size:12px}
+  .tabla-items th{background:var(--gris);padding:8px 9px;text-align:left;font-size:10px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:.3px;border-bottom:2px solid var(--borde)}
+  .tabla-items td{padding:5px 7px;border-bottom:1px solid var(--gris);vertical-align:middle}
+  .tabla-items input,.tabla-items select{border:1px solid transparent;background:transparent;padding:4px 6px;width:100%;font-size:12px;border-radius:5px;font-family:inherit}
+  .tabla-items input:focus,.tabla-items select:focus{background:#f8faff;border-color:var(--azul);outline:none}
+  .tabla-items tr:hover td{background:#f8faff}
+  .num-fila{color:var(--azul);font-weight:700;text-align:center}
+  /* fila de detalles adicionales */
+  .row-detalle td{background:#fffdf5 !important;border-left:3px solid var(--naranja)}
+
+  /* ── BOTONES ── */
+  .btn{padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--borde);background:#fff;color:var(--txt);font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+  .btn:hover{background:var(--gris);transform:translateY(-1px)}
+  .btn-primary{background:var(--azul);color:#fff;border-color:var(--azul)}
+  .btn-primary:hover{background:var(--azul2)}
+  .btn-sm{padding:5px 10px;font-size:11px}
+  .btn-danger{background:var(--rojo-cl);color:var(--rojo);border-color:#f7c1c1}
+  .btn-success{background:var(--verde-cl);color:var(--verde);border-color:#9fe1cb}
+  .btn-add{background:var(--azul-cl);color:var(--azul);border-color:#b5d4f4}
+  .btn-warn{background:var(--naranja-cl);color:var(--naranja);border-color:#f0d090}
+  .btn-edit{background:#f0eaff;color:#6a3fad;border-color:#c8aaee}
+  .barra-botones{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+
+  /* ── TOTALES ── */
+  .box-totales{background:#f8faff;border-radius:8px;padding:14px 16px;border:1px solid var(--borde)}
+  .fila-total{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:#555;border-bottom:1px solid #f0f4f8}
+  .fila-total:last-child{border-bottom:none}
+  .fila-total.subtotal{font-weight:700;color:var(--azul);border-top:1px solid var(--borde);margin-top:6px;padding-top:8px}
+  .fila-total.gran-total{font-size:16px;font-weight:700;color:var(--azul);border-top:2px solid var(--azul);margin-top:6px;padding-top:8px}
+  .fila-total.avance{color:var(--verde);font-weight:600}
+  .fila-total.restante{color:var(--rojo);font-weight:700;background:var(--rojo-cl);padding:6px 8px;border-radius:6px;margin-top:4px}
+
+  /* ── HISTORIAL ── */
+  .item-historial{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--gris);flex-wrap:wrap}
+  .item-historial:last-child{border-bottom:none}
+  .badge{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;white-space:nowrap}
+  .badge-factura{background:#e6f1fb;color:#185fa5}
+  .badge-cotizacion{background:var(--naranja-cl);color:var(--naranja)}
+  .badge-pendiente{background:var(--naranja-cl);color:var(--naranja)}
+  .badge-pagado{background:var(--verde-cl);color:var(--verde)}
+  .badge-vencido{background:var(--rojo-cl);color:var(--rojo)}
+  .empty{text-align:center;padding:40px;color:#aaa;font-size:13px}
+  .filtros{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .filtros select,.filtros input{padding:7px 11px;border:1px solid var(--borde);border-radius:7px;font-size:13px;font-family:inherit;background:#fff}
+
+  /* ── MÓDULO CLIENTES ── */
+  .cliente-card{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid var(--borde);border-radius:8px;margin-bottom:8px;background:#fff;transition:.15s}
+  .cliente-card:hover{background:#f8faff;border-color:var(--azul)}
+  .cliente-avatar{width:36px;height:36px;border-radius:50%;background:var(--azul);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+  .cliente-info{flex:1;min-width:0}
+  .cliente-nombre{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cliente-rnc{font-size:11px;color:var(--txt3);font-family:'DM Mono',monospace}
+  .autocomplete-box{position:absolute;background:#fff;border:1px solid var(--borde);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:500;max-height:200px;overflow-y:auto;width:100%}
+  .autocomplete-item{padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gris)}
+  .autocomplete-item:hover{background:var(--azul-cl)}
+  .autocomplete-item strong{color:var(--azul)}
+  .campo-rel{position:relative}
+
+  /* ── MODAL ── */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;overflow-y:auto;padding:20px}
+  .modal-overlay.visible{display:flex;align-items:flex-start;justify-content:center}
+  .modal{background:#fff;border-radius:12px;width:100%;max-width:760px;overflow:hidden}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;border-bottom:1px solid var(--borde)}
+  .modal-header span{font-weight:700;font-size:15px;color:var(--azul)}
+  .modal-body{padding:0}
+  .modal-footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--borde);flex-wrap:wrap}
+
+  /* ── MODAL CLIENTE ── */
+  .modal-small .modal{max-width:480px}
+
+  /* ── NOTIFICACIÓN SINCRONIZACIÓN ── */
+  .sync-status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt3);padding:4px 10px;background:var(--gris);border-radius:20px}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:#ccc}
+  .sync-dot.ok{background:#27ae60;animation:pulse 2s infinite}
+  .sync-dot.sync{background:var(--naranja);animation:spin .8s linear infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ── BANNER EDICIÓN ── */
+  .edit-banner{background:linear-gradient(90deg,#6a3fad,#9c55e0);color:#fff;padding:10px 16px;border-radius:8px;margin-bottom:14px;display:none;align-items:center;gap:10px;font-size:13px}
+  .edit-banner.show{display:flex}
+
+  /* ── PREVIEW FAC ── */
+  .fac{font-family:Arial,sans-serif;font-size:12px;color:var(--txt)}
+  .fac-head{background:var(--azul);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-start}
+  .fac-logo{font-size:26px;font-weight:900;letter-spacing:3px}
+  .fac-logo-sub{font-size:9px;color:#93b4e0;letter-spacing:1px;margin-top:3px}
+  .fac-emp{text-align:right;font-size:10px;color:#cce0ff;line-height:1.7}
+  .fac-emp strong{font-size:12px;color:#fff;display:block}
+  .fac-tipo{background:#f0f5ff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #c0d0f0}
+  .fac-tipo-txt{font-size:20px;font-weight:900;color:var(--azul)}
+  .fac-ncf{font-size:11px;color:var(--azul);font-weight:700}
+  .fac-meta{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid var(--azul)}
+  .fac-meta-cel{padding:8px 14px;border-right:1px solid #e8f0ff}
+  .fac-meta-lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px}
+  .fac-meta-val{font-size:12px;font-weight:700;color:var(--azul);margin-top:2px}
+  .fac-cliente{background:#f8faff;padding:8px 14px;display:flex;gap:24px;border-bottom:1px solid #e0e8f0;flex-wrap:wrap}
+  .fac-cli-lbl{font-size:9px;color:var(--azul);text-transform:uppercase;font-weight:700;letter-spacing:.5px}
+  .fac-cli-val{font-size:12px;font-weight:700;color:var(--txt);margin-top:1px}
+  .fac-items-head{display:grid;grid-template-columns:28px 1fr 55px 45px 75px 75px;background:var(--azul);color:#fff;font-size:10px;font-weight:700;padding:7px 10px;text-transform:uppercase;letter-spacing:.3px}
+  .fac-item-row{display:grid;grid-template-columns:28px 1fr 55px 45px 75px 75px;padding:6px 10px;font-size:11px;border-bottom:1px solid #eef2ff}
+  .fac-item-row:nth-child(even){background:#f8faff}
+  .fac-item-detalle{display:grid;grid-template-columns:28px 1fr;padding:5px 10px;font-size:11px;border-bottom:1px solid #eef2ff;background:#fffdf5;border-left:3px solid var(--naranja)}
+  .fac-det-lbl{font-size:9px;color:var(--naranja);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+  .tr{text-align:right}
+  .tc{text-align:center}
+  .fac-gi-head{display:grid;grid-template-columns:1fr 80px 80px;background:#dde8ff;font-size:9px;font-weight:700;color:var(--azul);padding:5px 10px;text-transform:uppercase;letter-spacing:.3px;border-top:1px solid #c0d0f0}
+  .fac-gi-row{display:grid;grid-template-columns:1fr 80px 80px;font-size:10px;padding:4px 10px;border-bottom:1px solid #eef2ff;background:#f5f8ff}
+  .fac-totales-sec{display:flex;border-top:2px solid var(--azul)}
+  .fac-notas-col{flex:1;padding:12px 14px;border-right:1px solid #e0e8f0;font-size:10px;line-height:1.7;color:#444}
+  .fac-notas-titulo{font-size:10px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .fac-totales-col{width:240px;padding:10px 14px}
+  .ft-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #f5f5f5;color:#555}
+  .ft-sub{font-weight:700;color:var(--azul);border-top:1px solid #c0d0f0;margin-top:4px;padding-top:6px}
+  .ft-grand{font-size:14px;font-weight:900;color:var(--azul);border-top:2px solid var(--azul);margin-top:4px;padding-top:6px}
+  .ft-avance{color:var(--verde);font-weight:700}
+  .ft-restante{color:var(--rojo);font-weight:700;background:var(--rojo-cl);padding:4px 6px;border-radius:4px;margin-top:4px}
+  .fac-banco{background:var(--azul);color:#fff;padding:8px 14px;display:flex;justify-content:space-between;font-size:10px;align-items:center}
+  .fac-banco-titulo{font-size:9px;color:#93b4e0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
+  .fac-banco-val{font-weight:700}
+  .fac-firmas{display:flex;gap:40px;padding:16px 20px;border-top:1px solid #e0e8f0}
+  .fac-firma{text-align:center;flex:1}
+  .fac-firma-linea{border-top:1px solid #aaa;padding-top:4px;font-size:9px;color:#999;margin-top:36px}
+  .fac-pie{background:#f0f4f8;padding:5px 14px;text-align:center;font-size:9px;color:#aaa;border-top:1px solid #e0e8f0}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:700px){
+    .metricas{grid-template-columns:1fr 1fr}
+    .grid2,.grid3{grid-template-columns:1fr}
+    .span2{grid-column:span 1}
+    .topbar nav button{font-size:11px;padding:6px 9px}
+  }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">SEMAR</div>
+    <div class="login-sub">Sistema de Facturación</div>
+    <input type="password" id="pwd-input" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Ingresar</button>
+    <div class="login-error" id="login-error">Contraseña incorrecta</div>
+    <div class="login-version">v2.0 · Sincronización multi-dispositivo</div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 40'%3E%3Crect width='80' height='40' fill='none'/%3E%3Ctext x='4' y='28' font-family='Arial' font-weight='900' font-size='22' fill='white' letter-spacing='3'%3ESEMAR%3C/text%3E%3C/svg%3E" style="height:32px">
+  <div class="sync-status" id="sync-status">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-txt">Local</span>
+  </div>
+  <nav>
+    <button class="active" onclick="irA('panel',this)">📊 Panel</button>
+    <button onclick="irA('nueva',this)">📄 Nueva Factura</button>
+    <button onclick="irA('historial',this)">🗂 Historial</button>
+    <button onclick="irA('clientes',this)">👥 Clientes</button>
+  </nav>
+</div>
+
+<!-- PANEL -->
+<div class="page active" id="panel">
+  <div class="metricas">
+    <div class="metrica"><div class="val" id="m-total">0</div><div class="lbl">Total documentos</div></div>
+    <div class="metrica"><div class="val" id="m-fact">0</div><div class="lbl">Facturas</div></div>
+    <div class="metrica"><div class="val" id="m-cot">0</div><div class="lbl">Cotizaciones</div></div>
+    <div class="metrica"><div class="val" id="m-monto">RD$0</div><div class="lbl">Monto total</div></div>
+  </div>
+  <div class="card">
+    <div class="card-titulo">📋 Documentos recientes</div>
+    <div id="panel-lista"><div class="empty">No hay documentos aún.</div></div>
+  </div>
+</div>
+
+<!-- NUEVA FACTURA / EDICIÓN -->
+<div class="page" id="nueva">
+
+  <!-- Banner edición -->
+  <div class="edit-banner" id="edit-banner">
+    ✏️ <strong>Modo edición:</strong> Estás editando un documento guardado.
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.3);margin-left:auto" onclick="cancelarEdicion()">Cancelar</button>
+  </div>
+
+  <div class="grid2">
+    <div class="campo">
+      <label>Tipo de documento</label>
+      <select id="doc-tipo" onchange="cambiarTipo()">
+        <option value="factura">Factura de Crédito Fiscal</option>
+        <option value="cotizacion">Cotización</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Número de documento</label>
+      <input type="text" id="doc-num" value="2026-0276">
+    </div>
+  </div>
+  <div class="grid3">
+    <div class="campo">
+      <label>NCF</label>
+      <input type="text" id="doc-ncf" placeholder="B0100000276">
+    </div>
+    <div class="campo">
+      <label>Proyecto</label>
+      <input type="text" id="doc-proyecto" placeholder="Ej: UPS 1ER NIVEL">
+    </div>
+    <div class="campo">
+      <label id="lbl-vence">Fecha de vencimiento</label>
+      <input type="date" id="doc-vence">
+    </div>
+  </div>
+
+  <!-- CLIENTE -->
+  <div class="card">
+    <div class="card-titulo">🏢 Datos del cliente</div>
+    <div class="grid2">
+      <div class="campo campo-rel">
+        <label>Nombre / Empresa</label>
+        <input type="text" id="cli-nombre" placeholder="Nombre o RNC para buscar..." oninput="buscarCliente(this.value)" autocomplete="off">
+        <div class="autocomplete-box" id="autocomplete-box" style="display:none"></div>
+      </div>
+      <div class="campo"><label>RNC / Cédula</label><input type="text" id="cli-rnc" placeholder="132-89715-3" oninput="buscarClienteRnc(this.value)" autocomplete="off"></div>
+      <div class="campo"><label>Teléfono</label><input type="text" id="cli-tel" placeholder="(809) 000-0000"></div>
+      <div class="campo"><label>Email</label><input type="email" id="cli-email" placeholder="cliente@email.com"></div>
+      <div class="campo span2"><label>Dirección</label><input type="text" id="cli-dir" placeholder="Calle, sector, ciudad"></div>
+    </div>
+  </div>
+
+  <!-- ÍTEMS -->
+  <div class="card">
+    <div class="card-titulo">🔧 Servicios, materiales y detalles</div>
+    <div style="overflow-x:auto">
+      <table class="tabla-items">
+        <thead>
+          <tr>
+            <th style="width:28px">#</th>
+            <th>Descripción</th>
+            <th style="width:60px;text-align:center">Cant.</th>
+            <th style="width:50px;text-align:center">Unid.</th>
+            <th style="width:100px;text-align:right">P/Unid. RD$</th>
+            <th style="width:100px;text-align:right">Total RD$</th>
+            <th style="width:34px"></th>
+          </tr>
+        </thead>
+        <tbody id="items-body"></tbody>
+      </table>
+    </div>
+    <div class="barra-botones">
+      <button class="btn btn-sm btn-add" onclick="addItem('Instalación eléctrica','PA','normal')">+ Servicio</button>
+      <button class="btn btn-sm btn-add" onclick="addItem('Cable #12 AWG','ML','normal')">+ Material</button>
+      <button class="btn btn-sm btn-add" onclick="addItem('Mano de obra calificada','HRS','normal')">+ Mano de obra</button>
+      <button class="btn btn-sm btn-warn" onclick="addItem('Detalles adicionales','','detalle')" title="Partida sin precio, solo texto descriptivo">+ Detalles adicionales</button>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <!-- GASTOS INDIRECTOS -->
+    <div class="card">
+      <div class="card-titulo">📐 Gastos indirectos</div>
+      <div class="campo"><label>Dirección técnica y planificación (%)</label><input type="number" id="gi-dir" value="10" min="0" max="100" step="0.1" oninput="calcular()"></div>
+      <div class="campo"><label>Imprevistos (RD$)</label><input type="number" id="gi-imprevistos" value="0" min="0" step="0.01" oninput="calcular()"></div>
+      <div class="campo"><label>Transporte (RD$)</label><input type="number" id="gi-transporte" value="0" min="0" step="0.01" oninput="calcular()"></div>
+      <div class="campo"><label>Dieta y alojamientos (RD$)</label><input type="number" id="gi-dieta" value="0" min="0" step="0.01" oninput="calcular()"></div>
+      <div class="campo"><label>Fecha de emisión</label><input type="date" id="doc-fecha"></div>
+      <div class="campo"><label>Avance recibido (RD$)</label><input type="number" id="doc-avance" value="0" min="0" step="0.01" oninput="calcular()" placeholder="0.00"></div>
+    </div>
+
+    <!-- TOTALES -->
+    <div class="card">
+      <div class="card-titulo">💰 Totales</div>
+      <div class="box-totales">
+        <div class="fila-total"><span>Mano de obra y materiales</span><span id="t-sub">RD$0.00</span></div>
+        <div class="fila-total"><span id="t-dir-lbl">Direcc. técnica (10%)</span><span id="t-dir">RD$0.00</span></div>
+        <div class="fila-total"><span>Imprevistos</span><span id="t-imprevistos">RD$0.00</span></div>
+        <div class="fila-total"><span>Transporte</span><span id="t-transporte">RD$0.00</span></div>
+        <div class="fila-total"><span>Dieta/alojamiento</span><span id="t-dieta">RD$0.00</span></div>
+        <div class="fila-total subtotal"><span>Sub-total</span><span id="t-stotal">RD$0.00</span></div>
+        <div class="fila-total"><span>ITBS (10% del 18%, Norma 7-07)</span><span id="t-itbs">RD$0.00</span></div>
+        <div class="fila-total gran-total"><span>Total general</span><span id="t-total">RD$0.00</span></div>
+        <div class="fila-total avance"><span>Avance recibido</span><span id="t-avance">RD$0.00</span></div>
+        <div class="fila-total restante"><span>Total restante</span><span id="t-restante">RD$0.00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONDICIONES / NOTAS -->
+  <div class="card">
+    <div class="card-titulo">📋 Condiciones de pago</div>
+    <div class="campo">
+      <textarea id="doc-pago">60% Avance para inicio de proyecto.
+30% Durante desarrollo del proyecto, dividido en dos partidas de 15% cada una, según avance.
+10% Contra entrega final y recibido conforme.</textarea>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-titulo">📝 Notas generales</div>
+    <div class="campo">
+      <textarea id="doc-notas">1- Los horarios de trabajo se coordinarán previamente entre ambas partes.
+2- Todo trabajo o servicio no incluido en esta cotización será considerado adicional y deberá ser previamente aprobado y cotizado.</textarea>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:32px;flex-wrap:wrap">
+    <button class="btn" onclick="verPreview()">👁 Vista previa</button>
+    <button class="btn btn-primary" onclick="guardarDoc()">💾 Guardar documento</button>
+  </div>
+</div>
+
+<!-- HISTORIAL -->
+<div class="page" id="historial">
+  <div class="filtros">
+    <select onchange="renderHistorial()" id="f-tipo">
+      <option value="">Todos los tipos</option>
+      <option value="factura">Facturas</option>
+      <option value="cotizacion">Cotizaciones</option>
+    </select>
+    <select onchange="renderHistorial()" id="f-estado">
+      <option value="">Todos los estados</option>
+      <option value="pendiente">Pendiente</option>
+      <option value="pagado">Pagado</option>
+      <option value="vencido">Vencido</option>
+    </select>
+    <input type="text" id="f-buscar" placeholder="🔍 Buscar cliente o N° doc..." style="flex:1;min-width:160px" oninput="renderHistorial()">
+    <button class="btn btn-sm btn-primary" onclick="irA('nueva',document.querySelectorAll('.topbar nav button')[1])">+ Nueva factura</button>
+  </div>
+  <div class="card">
+    <div id="historial-lista"><div class="empty">No hay documentos guardados.</div></div>
+  </div>
+</div>
+
+<!-- MÓDULO CLIENTES -->
+<div class="page" id="clientes">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <h2 style="font-size:18px;color:var(--azul);font-weight:700">👥 Gestión de Clientes</h2>
+    <button class="btn btn-primary" onclick="abrirModalCliente()">+ Nuevo cliente</button>
+  </div>
+  <div class="filtros">
+    <input type="text" id="buscar-cliente" placeholder="🔍 Buscar por nombre o RNC..." style="flex:1" oninput="renderClientes()">
+  </div>
+  <div id="lista-clientes"><div class="empty">No hay clientes registrados.</div></div>
+</div>
+
+<!-- MODAL PREVIEW -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📄 Vista previa del documento</span>
+      <button class="btn btn-sm" onclick="cerrarModal()">✕ Cerrar</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="generarPDF()">⬇ Descargar PDF</button>
+      <button class="btn btn-primary" onclick="cerrarModal();guardarDoc()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLIENTE -->
+<div class="modal-overlay modal-small" id="modal-cliente">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modal-cli-titulo">👤 Nuevo cliente</span>
+      <button class="btn btn-sm" onclick="cerrarModalCliente()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <input type="hidden" id="cli-edit-id">
+      <div class="grid2">
+        <div class="campo span2"><label>Nombre / Empresa *</label><input type="text" id="cli-edit-nombre" placeholder="Nombre completo o empresa"></div>
+        <div class="campo"><label>RNC / Cédula</label><input type="text" id="cli-edit-rnc" placeholder="000-00000-0"></div>
+        <div class="campo"><label>Teléfono</label><input type="text" id="cli-edit-tel" placeholder="(809) 000-0000"></div>
+        <div class="campo"><label>Email</label><input type="email" id="cli-edit-email" placeholder="correo@email.com"></div>
+        <div class="campo"><label>Ciudad</label><input type="text" id="cli-edit-ciudad" placeholder="Santo Domingo"></div>
+        <div class="campo span2"><label>Dirección</label><input type="text" id="cli-edit-dir" placeholder="Calle, sector, ciudad"></div>
+        <div class="campo span2"><label>Notas internas</label><input type="text" id="cli-edit-notas" placeholder="Observaciones opcionales"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="cerrarModalCliente()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarClienteModal()">💾 Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// EMPRESA
+// ═══════════════════════════════════════════════════════════
+const EMP = {
+  nombre:'Soluciones Eléctricas Mateo & Rodríguez, S.R.L.',
+  siglas:'SEMAR',rnc:'1-30-32338-2',
+  dir:'Calle 4ta No. 8, Carretera de Mendoza, Sto. Dgo Este.',
+  tel:'(829) 659-9551',email:'semarsa@hotmail.es',
+  banco:'BHD',tipoCuenta:'Cuenta corriente empresarial RD$',
+  numCuenta:'08236430015',
+  cuentaNombre:'Soluciones Eléctricas Mateo & Rodríguez.'
+};
+
+// ═══════════════════════════════════════════════════════════
+// STORAGE — clave compartida para sincronización entre tabs
+// ═══════════════════════════════════════════════════════════
+const KEY_FAC = 'semar_v2_facturas';
+const KEY_CLI = 'semar_v2_clientes';
+
+function getFacturas(){ return JSON.parse(localStorage.getItem(KEY_FAC)||'[]'); }
+function saveFacturas(a){ localStorage.setItem(KEY_FAC,JSON.stringify(a)); notifySync(); }
+function getClientes(){ return JSON.parse(localStorage.getItem(KEY_CLI)||'[]'); }
+function saveClientes(a){ localStorage.setItem(KEY_CLI,JSON.stringify(a)); notifySync(); }
+
+// Sincronización multi-pestaña (storage event)
+window.addEventListener('storage', e => {
+  if(e.key===KEY_FAC||e.key===KEY_CLI){
+    showToast('📲 Datos actualizados desde otro dispositivo');
+    renderPanel(); renderHistorial(); renderClientes();
+    setSyncOk();
+  }
+});
+
+function notifySync(){
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-txt');
+  dot.className='sync-dot sync';
+  txt.textContent='Guardando...';
+  setTimeout(setSyncOk, 600);
+}
+function setSyncOk(){
+  const dot=document.getElementById('sync-dot');
+  const txt=document.getElementById('sync-txt');
+  dot.className='sync-dot ok';
+  txt.textContent='Sincronizado';
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOGIN
+// ═══════════════════════════════════════════════════════════
+(function(){
+  const PASS='Lina0829',SKEY='semar_auth';
+  if(sessionStorage.getItem(SKEY)==='1') document.getElementById('login-screen').classList.add('oculto');
+  window.doLogin=function(){
+    const v=document.getElementById('pwd-input').value;
+    if(v===PASS){ sessionStorage.setItem(SKEY,'1'); document.getElementById('login-screen').classList.add('oculto'); setSyncOk(); }
+    else{ document.getElementById('login-error').style.display='block'; document.getElementById('pwd-input').value=''; }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════
+// NAVEGACIÓN
+// ═══════════════════════════════════════════════════════════
+function irA(pag, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.topbar nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(pag).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(pag==='panel') renderPanel();
+  if(pag==='historial') renderHistorial();
+  if(pag==='clientes') renderClientes();
+  cerrarAutocomplete();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ÍTEMS
+// ═══════════════════════════════════════════════════════════
+let items=[], itemId=0, editandoId=null;
+
+// tipo: 'normal' | 'detalle'
+function addItem(desc, unit, tipo='normal'){
+  itemId++;
+  items.push({id:itemId, desc, cant:1, unit, precio:0, tipo});
+  renderItems();
+}
+function removeItem(id){ items=items.filter(i=>i.id!==id); renderItems(); calcular(); }
+
+function updateItem(id,campo,val){
+  const it=items.find(i=>i.id===id); if(!it) return;
+  it[campo]=(campo==='cant'||campo==='precio')?(parseFloat(val)||0):val;
+  if(campo!=='desc'&&campo!=='unit'){
+    const el=document.getElementById('row-total-'+id);
+    if(el && it.tipo==='normal') el.textContent=fmt(it.cant*it.precio);
+  }
+  calcular();
+}
+
+function renderItems(){
+  const tbody=document.getElementById('items-body');
+  if(!items.length){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa">Agrega servicios, materiales o detalles</td></tr>';
+    calcular(); return;
+  }
+  let idx=0;
+  tbody.innerHTML=items.map(it=>{
+    if(it.tipo==='detalle'){
+      return `<tr class="row-detalle">
+        <td class="num-fila" style="color:var(--naranja)">★</td>
+        <td colspan="4">
+          <input value="${escH(it.desc)}" onchange="updateItem(${it.id},'desc',this.value)" placeholder="Descripción del detalle adicional..." style="width:100%">
+        </td>
+        <td style="text-align:center;font-size:10px;color:var(--naranja);font-weight:700">DETALLE</td>
+        <td><button class="btn btn-sm btn-danger" onclick="removeItem(${it.id})" style="padding:3px 8px">✕</button></td>
+      </tr>`;
+    }
+    idx++;
+    return `<tr>
+      <td class="num-fila">${idx}</td>
+      <td><input value="${escH(it.desc)}" onchange="updateItem(${it.id},'desc',this.value)" placeholder="Descripción"></td>
+      <td><input type="number" value="${it.cant}" min="0.01" step="0.01" onchange="updateItem(${it.id},'cant',this.value)" style="text-align:center"></td>
+      <td><input value="${escH(it.unit)}" onchange="updateItem(${it.id},'unit',this.value)" style="text-align:center;width:44px"></td>
+      <td><input type="number" value="${it.precio}" min="0" step="0.01" onchange="updateItem(${it.id},'precio',this.value)" style="text-align:right"></td>
+      <td style="text-align:right;font-weight:700;color:var(--azul)" id="row-total-${it.id}">${fmt(it.cant*it.precio)}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="removeItem(${it.id})" style="padding:3px 8px">✕</button></td>
+    </tr>`;
+  }).join('');
+  calcular();
+}
+
+function escH(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ═══════════════════════════════════════════════════════════
+// CÁLCULOS
+// ═══════════════════════════════════════════════════════════
+function calcular(){
+  const sub=items.filter(i=>i.tipo==='normal').reduce((s,i)=>s+i.cant*i.precio,0);
+  const dirPct=parseFloat(document.getElementById('gi-dir').value)||0;
+  const imprevistos=parseFloat(document.getElementById('gi-imprevistos').value)||0;
+  const transporte=parseFloat(document.getElementById('gi-transporte').value)||0;
+  const dieta=parseFloat(document.getElementById('gi-dieta').value)||0;
+  const avance=parseFloat(document.getElementById('doc-avance').value)||0;
+  const dir=sub*(dirPct/100);
+  const stotal=sub+dir+imprevistos+transporte+dieta;
+  const itbs=stotal*0.10*0.18;
+  const total=stotal+itbs;
+  const restante=total-avance;
+  document.getElementById('t-sub').textContent=fmt(sub);
+  document.getElementById('t-dir-lbl').textContent=`Direcc. técnica (${dirPct}%)`;
+  document.getElementById('t-dir').textContent=fmt(dir);
+  document.getElementById('t-imprevistos').textContent=fmt(imprevistos);
+  document.getElementById('t-transporte').textContent=fmt(transporte);
+  document.getElementById('t-dieta').textContent=fmt(dieta);
+  document.getElementById('t-stotal').textContent=fmt(stotal);
+  document.getElementById('t-itbs').textContent=fmt(itbs);
+  document.getElementById('t-total').textContent=fmt(total);
+  document.getElementById('t-avance').textContent=fmt(avance);
+  document.getElementById('t-restante').textContent=fmt(restante);
+  return{sub,dir,dirPct,imprevistos,transporte,dieta,stotal,itbs,total,avance,restante};
+}
+
+function fmt(n){ return 'RD$'+parseFloat(n||0).toLocaleString('es-DO',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// ═══════════════════════════════════════════════════════════
+// CAMBIO TIPO
+// ═══════════════════════════════════════════════════════════
+function cambiarTipo(){
+  const t=document.getElementById('doc-tipo').value;
+  document.getElementById('lbl-vence').textContent= t==='cotizacion'?'Válida hasta':'Fecha de vencimiento';
+}
+
+// ═══════════════════════════════════════════════════════════
+// OBTENER DATOS DEL FORM
+// ═══════════════════════════════════════════════════════════
+function getDatos(){
+  const tots=calcular();
+  return{
+    tipo:document.getElementById('doc-tipo').value,
+    num:document.getElementById('doc-num').value,
+    ncf:document.getElementById('doc-ncf').value,
+    proyecto:document.getElementById('doc-proyecto').value,
+    fecha:document.getElementById('doc-fecha').value,
+    vence:document.getElementById('doc-vence').value,
+    pago:document.getElementById('doc-pago').value,
+    notas:document.getElementById('doc-notas').value,
+    cliente:{
+      nombre:document.getElementById('cli-nombre').value,
+      rnc:document.getElementById('cli-rnc').value,
+      tel:document.getElementById('cli-tel').value,
+      email:document.getElementById('cli-email').value,
+      dir:document.getElementById('cli-dir').value,
+    },
+    items:JSON.parse(JSON.stringify(items)),
+    ...tots,
+    estado:'pendiente',
+    creado:new Date().toISOString()
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// GUARDAR DOCUMENTO
+// ═══════════════════════════════════════════════════════════
+function guardarDoc(){
+  const d=getDatos();
+  if(!d.cliente.nombre){alert('Ingresa el nombre del cliente.');return;}
+  if(!d.items.length){alert('Agrega al menos un ítem.');return;}
+
+  // Auto-guardar cliente si es nuevo
+  autoGuardarCliente(d.cliente);
+
+  const arr=getFacturas();
+  if(editandoId){
+    const idx=arr.findIndex(x=>x.id===editandoId);
+    if(idx>=0){ d.id=editandoId; d.creado=arr[idx].creado; d.estado=arr[idx].estado; arr[idx]=d; }
+    editandoId=null;
+    document.getElementById('edit-banner').classList.remove('show');
+    showToast('✅ Documento actualizado correctamente');
+  } else {
+    d.id=Date.now();
+    arr.unshift(d);
+    showToast('💾 Documento guardado correctamente');
+  }
+  saveFacturas(arr);
+  limpiarFormulario();
+  renderPanel();
+  irA('historial',document.querySelectorAll('.topbar nav button')[2]);
+}
+
+function autoGuardarCliente(c){
+  if(!c.nombre) return;
+  const arr=getClientes();
+  const existe=arr.some(x=>
+    (x.rnc&&c.rnc&&x.rnc===c.rnc)||
+    x.nombre.toLowerCase()===c.nombre.toLowerCase()
+  );
+  if(!existe){
+    arr.push({
+      id:Date.now(),
+      nombre:c.nombre, rnc:c.rnc||'',
+      telefono:c.tel||'', email:c.email||'',
+      direccion:c.dir||'', ciudad:'', notas:'',
+      creado:new Date().toISOString()
+    });
+    saveClientes(arr);
+  }
+}
+
+function limpiarFormulario(){
+  items=[]; itemId=0; editandoId=null;
+  renderItems();
+  ['cli-nombre','cli-rnc','cli-tel','cli-email','cli-dir','doc-ncf','doc-proyecto'].forEach(id=>{document.getElementById(id).value='';});
+  ['gi-imprevistos','gi-transporte','gi-dieta','doc-avance'].forEach(id=>{document.getElementById(id).value='0';});
+  document.getElementById('gi-dir').value='10';
+  document.getElementById('doc-tipo').value='factura';
+  document.getElementById('edit-banner').classList.remove('show');
+  calcular();
+}
+
+// ═══════════════════════════════════════════════════════════
+// EDITAR DOCUMENTO
+// ═══════════════════════════════════════════════════════════
+function editarDoc(id){
+  const d=getFacturas().find(x=>x.id===id); if(!d) return;
+  editandoId=id;
+
+  // Llenar form
+  document.getElementById('doc-tipo').value=d.tipo;
+  document.getElementById('doc-num').value=d.num||'';
+  document.getElementById('doc-ncf').value=d.ncf||'';
+  document.getElementById('doc-proyecto').value=d.proyecto||'';
+  document.getElementById('doc-fecha').value=d.fecha||'';
+  document.getElementById('doc-vence').value=d.vence||'';
+  document.getElementById('doc-pago').value=d.pago||'';
+  document.getElementById('doc-notas').value=d.notas||'';
+  document.getElementById('gi-dir').value=d.dirPct||10;
+  document.getElementById('gi-imprevistos').value=d.imprevistos||0;
+  document.getElementById('gi-transporte').value=d.transporte||0;
+  document.getElementById('gi-dieta').value=d.dieta||0;
+  document.getElementById('doc-avance').value=d.avance||0;
+  document.getElementById('cli-nombre').value=d.cliente?.nombre||'';
+  document.getElementById('cli-rnc').value=d.cliente?.rnc||'';
+  document.getElementById('cli-tel').value=d.cliente?.tel||'';
+  document.getElementById('cli-email').value=d.cliente?.email||'';
+  document.getElementById('cli-dir').value=d.cliente?.dir||'';
+
+  items=d.items.map((it,i)=>({...it, id:i+1}));
+  itemId=items.length;
+  renderItems();
+  cambiarTipo();
+
+  document.getElementById('edit-banner').classList.add('show');
+  irA('nueva',document.querySelectorAll('.topbar nav button')[1]);
+}
+
+function cancelarEdicion(){
+  editandoId=null;
+  limpiarFormulario();
+  showToast('Edición cancelada');
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONVERTIR COTIZACIÓN → FACTURA
+// ═══════════════════════════════════════════════════════════
+function convertirAFactura(id){
+  if(!confirm('¿Convertir esta cotización en factura? Se guardará la cotización original y se abrirá una nueva factura con los mismos datos.')) return;
+  const arr=getFacturas();
+  const d=arr.find(x=>x.id===id); if(!d) return;
+
+  // Marcar cotización como convertida
+  d.convertida=true;
+  d.convertidaFecha=new Date().toISOString();
+  saveFacturas(arr);
+
+  // Abrir formulario con datos de la cotización, tipo factura
+  const copia={...d, tipo:'factura', estado:'pendiente', items:JSON.parse(JSON.stringify(d.items))};
+  editandoId=null;
+
+  // Llenar form
+  document.getElementById('doc-tipo').value='factura';
+  document.getElementById('doc-num').value=d.num+'-F';
+  document.getElementById('doc-ncf').value=d.ncf||'';
+  document.getElementById('doc-proyecto').value=d.proyecto||'';
+  document.getElementById('doc-fecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('doc-vence').value=d.vence||'';
+  document.getElementById('doc-pago').value=d.pago||'';
+  document.getElementById('doc-notas').value=d.notas||'';
+  document.getElementById('gi-dir').value=d.dirPct||10;
+  document.getElementById('gi-imprevistos').value=d.imprevistos||0;
+  document.getElementById('gi-transporte').value=d.transporte||0;
+  document.getElementById('gi-dieta').value=d.dieta||0;
+  document.getElementById('doc-avance').value=d.avance||0;
+  document.getElementById('cli-nombre').value=d.cliente?.nombre||'';
+  document.getElementById('cli-rnc').value=d.cliente?.rnc||'';
+  document.getElementById('cli-tel').value=d.cliente?.tel||'';
+  document.getElementById('cli-email').value=d.cliente?.email||'';
+  document.getElementById('cli-dir').value=d.cliente?.dir||'';
+
+  items=copia.items.map((it,i)=>({...it, id:i+1}));
+  itemId=items.length;
+  renderItems();
+  cambiarTipo();
+
+  showToast('📄 Cotización cargada como factura. Revisa y guarda.');
+  irA('nueva',document.querySelectorAll('.topbar nav button')[1]);
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTOCOMPLETADO DE CLIENTES en formulario
+// ═══════════════════════════════════════════════════════════
+function buscarCliente(val){
+  cerrarAutocomplete();
+  if(!val||val.length<2) return;
+  const lista=getClientes();
+  const r=lista.filter(c=>
+    c.nombre.toLowerCase().includes(val.toLowerCase())||
+    (c.rnc&&c.rnc.includes(val))
+  ).slice(0,6);
+  if(!r.length) return;
+  const box=document.getElementById('autocomplete-box');
+  box.innerHTML=r.map(c=>`
+    <div class="autocomplete-item" onclick="llenarCliente(${c.id})">
+      <strong>${c.nombre}</strong>
+      ${c.rnc?`<span style="color:var(--txt3);font-size:11px;margin-left:8px">${c.rnc}</span>`:''}
+    </div>`).join('');
+  box.style.display='block';
+}
+
+function buscarClienteRnc(val){
+  if(!val||val.length<3) return;
+  const lista=getClientes();
+  const c=lista.find(x=>x.rnc&&x.rnc.replace(/[-\s]/g,'').includes(val.replace(/[-\s]/g,'')));
+  if(c) llenarCliente(c.id);
+}
+
+function llenarCliente(id){
+  const c=getClientes().find(x=>x.id===id); if(!c) return;
+  document.getElementById('cli-nombre').value=c.nombre;
+  document.getElementById('cli-rnc').value=c.rnc||'';
+  document.getElementById('cli-tel').value=c.telefono||'';
+  document.getElementById('cli-email').value=c.email||'';
+  document.getElementById('cli-dir').value=c.direccion||'';
+  cerrarAutocomplete();
+}
+
+function cerrarAutocomplete(){
+  const b=document.getElementById('autocomplete-box');
+  if(b) b.style.display='none';
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.campo-rel')) cerrarAutocomplete();
+});
+
+// ═══════════════════════════════════════════════════════════
+// PREVIEW HTML
+// ═══════════════════════════════════════════════════════════
+function buildHTML(d){
+  const tipoTxt=d.tipo==='factura'?'FACTURA DE CRÉDITO FISCAL':'COTIZACIÓN';
+  let rowsHTML='', numItem=0;
+  (d.items||[]).forEach(it=>{
+    if(it.tipo==='detalle'){
+      rowsHTML+=`<div class="fac-item-detalle">
+        <div style="color:var(--naranja);font-weight:700;text-align:center">★</div>
+        <div>
+          <div class="fac-det-lbl">Detalles adicionales</div>
+          <div>${escH(it.desc)}</div>
+        </div>
+      </div>`;
+    } else {
+      numItem++;
+      rowsHTML+=`<div class="fac-item-row">
+        <div style="color:var(--azul);font-weight:700;text-align:center">${numItem}</div>
+        <div>${escH(it.desc)}</div>
+        <div class="tc">${parseFloat(it.cant).toFixed(2)}</div>
+        <div class="tc">${escH(it.unit)}</div>
+        <div class="tr">${fmt(it.precio)}</div>
+        <div class="tr" style="font-weight:700">${fmt(it.cant*it.precio)}</div>
+      </div>`;
+    }
+  });
+
+  const notasLines=(d.notas||'').split('\n').filter(l=>l.trim()).map(l=>`<div>${escH(l)}</div>`).join('');
+  const pagoLines=(d.pago||'').split('\n').filter(l=>l.trim()).map(l=>`<div>${escH(l)}</div>`).join('');
+
+  return `<div class="fac">
+    <div class="fac-head">
+      <div><div class="fac-logo">SEMAR</div><div class="fac-logo-sub">SOLUCIONES ELÉCTRICAS MATEO & RODRÍGUEZ, S.R.L.</div></div>
+      <div class="fac-emp">
+        <strong>${escH(EMP.nombre)}</strong>
+        <span>${escH(EMP.dir)}</span><br>
+        <span>Tel: ${EMP.tel} · ${EMP.email}</span><br>
+        <span>RNC: ${EMP.rnc}</span>
+        ${d.tipo==='factura'?`<br><span style="color:#ffd080;font-weight:700">Fact. N°: ${escH(d.num)}</span>`:''}
+      </div>
+    </div>
+    <div class="fac-tipo">
+      <div>
+        <div class="fac-tipo-txt">${tipoTxt}</div>
+        ${d.ncf?`<div class="fac-ncf">NCF: ${escH(d.ncf)}</div>`:''}
+      </div>
+      ${d.proyecto?`<div style="text-align:right"><div style="font-size:9px;color:#888;text-transform:uppercase">Proyecto</div><div style="font-size:14px;font-weight:700;color:var(--azul)">${escH(d.proyecto)}</div></div>`:''}
+    </div>
+    <div class="fac-meta">
+      <div class="fac-meta-cel"><div class="fac-meta-lbl">Fecha de emisión</div><div class="fac-meta-val">${d.fecha||'—'}</div></div>
+      <div class="fac-meta-cel"><div class="fac-meta-lbl">${d.tipo==='cotizacion'?'Válida hasta':'Vencimiento'}</div><div class="fac-meta-val">${d.vence||'—'}</div></div>
+      <div class="fac-meta-cel"><div class="fac-meta-lbl">Tipo</div><div class="fac-meta-val">${d.tipo==='factura'?'Crédito Fiscal':'Cotización'}</div></div>
+    </div>
+    <div class="fac-cliente">
+      <div><div class="fac-cli-lbl">RNC / Cédula</div><div class="fac-cli-val">${escH(d.cliente?.rnc)||'—'}</div></div>
+      <div style="flex:2"><div class="fac-cli-lbl">Nombre / Empresa</div><div class="fac-cli-val">${escH(d.cliente?.nombre)||'—'}</div></div>
+      ${d.cliente?.dir?`<div style="flex:2"><div class="fac-cli-lbl">Dirección</div><div class="fac-cli-val">${escH(d.cliente.dir)}</div></div>`:''}
+    </div>
+    <div class="fac-items-head"><div>#</div><div>Descripción</div><div class="tc">Cant.</div><div class="tc">Unid.</div><div class="tr">P/Unid.</div><div class="tr">Total</div></div>
+    ${rowsHTML||'<div style="text-align:center;padding:14px;color:#aaa">Sin ítems</div>'}
+    <div class="fac-gi-head"><div>Gastos indirectos</div><div class="tr">RD$</div><div class="tr">Monto</div></div>
+    <div class="fac-gi-row"><div>Dirección técnica y planificación (${d.dirPct||0}%)</div><div class="tr">RD$</div><div class="tr">${parseFloat(d.dir||0).toLocaleString('es-DO',{minimumFractionDigits:2})}</div></div>
+    <div class="fac-gi-row"><div>Dieta y alojamientos</div><div class="tr">RD$</div><div class="tr">${parseFloat(d.dieta||0).toLocaleString('es-DO',{minimumFractionDigits:2})}</div></div>
+    <div class="fac-gi-row"><div>Imprevistos</div><div class="tr">RD$</div><div class="tr">${parseFloat(d.imprevistos||0).toLocaleString('es-DO',{minimumFractionDigits:2})}</div></div>
+    <div class="fac-gi-row"><div>Transporte</div><div class="tr">RD$</div><div class="tr">${parseFloat(d.transporte||0).toLocaleString('es-DO',{minimumFractionDigits:2})}</div></div>
+    <div class="fac-totales-sec">
+      <div class="fac-notas-col">
+        ${notasLines?`<div class="fac-notas-titulo">Notas generales</div>${notasLines}`:''}
+        ${pagoLines?`<div class="fac-notas-titulo" style="margin-top:8px">Condiciones de pago</div>${pagoLines}`:''}
+      </div>
+      <div class="fac-totales-col">
+        <div class="ft-row"><span>Mano de obra y materiales</span><span>${fmt(d.sub)}</span></div>
+        <div class="ft-row ft-sub"><span>Sub-total</span><span>${fmt(d.stotal)}</span></div>
+        <div class="ft-row"><span>ITBS (10% del 18%, Norma 7-07)</span><span>${fmt(d.itbs)}</span></div>
+        <div class="ft-row ft-grand"><span>Total general</span><span>${fmt(d.total)}</span></div>
+        ${d.avance>0?`<div class="ft-row ft-avance"><span>Avance recibido</span><span>${fmt(d.avance)}</span></div>
+        <div class="ft-row ft-restante"><span>Total restante a la fecha</span><span>${fmt(d.restante)}</span></div>`:''}
+      </div>
+    </div>
+    <div class="fac-banco">
+      <div>
+        <div class="fac-banco-titulo">Datos bancarios</div>
+        <div class="fac-banco-val">Banco: ${EMP.banco} · ${EMP.tipoCuenta}</div>
+        <div>N° de cuenta: ${EMP.numCuenta} · A nombre de: ${EMP.cuentaNombre}</div>
+      </div>
+      <div style="text-align:right;color:#93b4e0;font-size:10px">
+        <div>${EMP.dir}</div><div>Tel: ${EMP.tel} · ${EMP.email}</div>
+      </div>
+    </div>
+    <div class="fac-firmas">
+      <div class="fac-firma"><div class="fac-firma-linea">Firma Autorizada</div></div>
+      <div class="fac-firma"><div class="fac-firma-linea">Recibido por</div></div>
+    </div>
+    <div class="fac-pie">${EMP.nombre} · RNC: ${EMP.rnc} · ${EMP.tel} · ${EMP.email}</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODALES
+// ═══════════════════════════════════════════════════════════
+let datosPrev=null;
+
+function verPreview(){
+  datosPrev=getDatos();
+  document.getElementById('modal-body').innerHTML=buildHTML(datosPrev);
+  document.getElementById('modal').classList.add('visible');
+}
+function cerrarModal(){ document.getElementById('modal').classList.remove('visible'); }
+
+// ═══════════════════════════════════════════════════════════
+// PDF
+// ═══════════════════════════════════════════════════════════
+function generarPDF(){
+  const d=datosPrev||getDatos();
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210; let y=0;
+
+  doc.setFillColor(12,53,114); doc.rect(0,0,W,28,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(20); doc.setFont('helvetica','bold');
+  doc.text('SEMAR',14,12);
+  doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(147,180,224);
+  doc.text('SOLUCIONES ELECTRICAS MATEO & RODRIGUEZ, S.R.L.',14,17);
+  doc.setTextColor(255,255,255); doc.setFontSize(8);
+  doc.text(EMP.nombre,W-14,8,{align:'right'});
+  doc.setTextColor(204,224,255);
+  doc.text(EMP.dir,W-14,13,{align:'right'});
+  doc.text(`Tel: ${EMP.tel}  Email: ${EMP.email}`,W-14,17,{align:'right'});
+  doc.text(`RNC: ${EMP.rnc}`,W-14,21,{align:'right'});
+  if(d.tipo==='factura'){ doc.setTextColor(255,208,128); doc.setFont('helvetica','bold'); doc.text(`Fact. N: ${d.num}`,W-14,26,{align:'right'}); }
+  y=30;
+
+  doc.setFillColor(240,245,255); doc.rect(0,y,W,12,'F');
+  doc.setTextColor(12,53,114); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.text(d.tipo==='factura'?'FACTURA DE CREDITO FISCAL':'COTIZACION',14,y+8);
+  if(d.ncf){ doc.setFontSize(8); doc.text(`NCF: ${d.ncf}`,14,y+11); }
+  if(d.proyecto){ doc.setFontSize(9); doc.text(d.proyecto,W-14,y+8,{align:'right'}); }
+  y+=14;
+
+  doc.setDrawColor(12,53,114); doc.setLineWidth(0.5); doc.line(0,y,W,y);
+  doc.setFontSize(7); doc.setTextColor(136); doc.setFont('helvetica','normal');
+  doc.text('FECHA DE EMISION',14,y+4); doc.text('VENCIMIENTO',80,y+4); doc.text('TIPO',150,y+4);
+  doc.setFontSize(9); doc.setTextColor(12,53,114); doc.setFont('helvetica','bold');
+  doc.text(d.fecha||'—',14,y+9); doc.text(d.vence||'—',80,y+9);
+  doc.text(d.tipo==='factura'?'Credito Fiscal':'Cotizacion',150,y+9);
+  y+=14;
+
+  doc.setFillColor(248,250,255); doc.rect(0,y,W,10,'F');
+  doc.setFontSize(7); doc.setTextColor(12,53,114); doc.setFont('helvetica','bold');
+  doc.text('RNC CLIENTE:',14,y+4); doc.text('NOMBRE:',55,y+4);
+  doc.setFontSize(9); doc.setTextColor(26,26,46);
+  doc.text(d.cliente?.rnc||'—',14,y+9); doc.text(d.cliente?.nombre||'—',55,y+9);
+  y+=13;
+
+  // Separar ítems normales y detalles
+  const itsNorm=(d.items||[]).filter(i=>i.tipo!=='detalle');
+  const itsDet=(d.items||[]).filter(i=>i.tipo==='detalle');
+
+  if(itsNorm.length){
+    doc.autoTable({
+      startY:y,
+      head:[['#','Descripcion','Cant.','Unid.','P/Unid. RD$','Total RD$']],
+      body:itsNorm.map((it,i)=>[i+1,it.desc,parseFloat(it.cant).toFixed(2),it.unit,
+        parseFloat(it.precio).toLocaleString('es-DO',{minimumFractionDigits:2}),
+        parseFloat(it.cant*it.precio).toLocaleString('es-DO',{minimumFractionDigits:2})
+      ]),
+      headStyles:{fillColor:[12,53,114],textColor:255,fontSize:8,fontStyle:'bold'},
+      bodyStyles:{fontSize:8},
+      columnStyles:{0:{cellWidth:10,halign:'center'},2:{cellWidth:15,halign:'center'},3:{cellWidth:15,halign:'center'},4:{cellWidth:30,halign:'right'},5:{cellWidth:30,halign:'right'}},
+      alternateRowStyles:{fillColor:[248,250,255]},
+      margin:{left:0,right:0},theme:'grid'
+    });
+    y=doc.lastAutoTable.finalY;
+  }
+
+  if(itsDet.length){
+    doc.autoTable({
+      startY:y,
+      head:[['★ DETALLES ADICIONALES']],
+      body:itsDet.map(it=>[ it.desc ]),
+      headStyles:{fillColor:[186,117,23],textColor:255,fontSize:8,fontStyle:'bold'},
+      bodyStyles:{fontSize:8,fillColor:[255,253,245]},
+      margin:{left:0,right:0},theme:'grid'
+    });
+    y=doc.lastAutoTable.finalY;
+  }
+
+  doc.autoTable({
+    startY:y,
+    head:[['Gastos Indirectos','RD$','Monto']],
+    body:[
+      [`Direccion tecnica y planificacion (${d.dirPct||0}%)`,'RD$',parseFloat(d.dir||0).toLocaleString('es-DO',{minimumFractionDigits:2})],
+      ['Dieta y alojamientos','RD$',parseFloat(d.dieta||0).toLocaleString('es-DO',{minimumFractionDigits:2})],
+      ['Imprevistos','RD$',parseFloat(d.imprevistos||0).toLocaleString('es-DO',{minimumFractionDigits:2})],
+      ['Transporte','RD$',parseFloat(d.transporte||0).toLocaleString('es-DO',{minimumFractionDigits:2})],
+    ],
+    headStyles:{fillColor:[221,232,255],textColor:[12,53,114],fontSize:7,fontStyle:'bold'},
+    bodyStyles:{fontSize:8,fillColor:[245,248,255]},
+    columnStyles:{1:{cellWidth:20,halign:'right'},2:{cellWidth:30,halign:'right'}},
+    margin:{left:0,right:0},theme:'grid'
+  });
+  y=doc.lastAutoTable.finalY;
+
+  const totX=120;
+  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(85);
+  [['Mano de obra y materiales',fmt(d.sub)],['Sub-total',fmt(d.stotal)],[`ITBS (10% del 18%, Norma 7-07)`,fmt(d.itbs)]].forEach(([l,v])=>{
+    y+=5; doc.text(l,totX,y); doc.text(v,W-5,y,{align:'right'});
+  });
+  y+=2; doc.setDrawColor(12,53,114); doc.line(totX,y,W-5,y); y+=4;
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(12,53,114);
+  doc.text('TOTAL GENERAL',totX,y); doc.text(fmt(d.total),W-5,y,{align:'right'});
+  if(d.avance>0){
+    y+=5; doc.setFontSize(8); doc.setTextColor(15,110,86);
+    doc.text('Avance recibido',totX,y); doc.text(fmt(d.avance),W-5,y,{align:'right'});
+    y+=5; doc.setTextColor(163,45,45); doc.setFont('helvetica','bold');
+    doc.text('Total restante a la fecha',totX,y); doc.text(fmt(d.restante),W-5,y,{align:'right'});
+  }
+  y+=8;
+
+  if(d.notas||d.pago){
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(12,53,114);
+    if(d.notas){ doc.text('Notas Generales:',5,y); y+=4; doc.setFont('helvetica','normal'); doc.setTextColor(68);
+      const nL=doc.splitTextToSize(d.notas,100); doc.text(nL,5,y); y+=nL.length*4+3; }
+    if(d.pago){ doc.setFont('helvetica','bold'); doc.setTextColor(12,53,114); doc.text('Condiciones de pago:',5,y); y+=4;
+      doc.setFont('helvetica','normal'); doc.setTextColor(68);
+      const pL=doc.splitTextToSize(d.pago,100); doc.text(pL,5,y); y+=pL.length*4+6; }
+  }
+
+  if(y>255){ doc.addPage(); y=10; }
+  doc.setFillColor(12,53,114); doc.rect(0,y,W,16,'F');
+  doc.setTextColor(147,180,224); doc.setFontSize(6); doc.setFont('helvetica','bold');
+  doc.text('DATOS BANCARIOS',5,y+4);
+  doc.setTextColor(255); doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text(`Banco: ${EMP.banco}  ·  ${EMP.tipoCuenta}  ·  N° ${EMP.numCuenta}`,5,y+9);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7);
+  doc.text(`A nombre de: ${EMP.cuentaNombre}`,5,y+13);
+  y+=20;
+
+  doc.setDrawColor(170); doc.setLineWidth(0.3);
+  doc.line(20,y+12,85,y+12); doc.line(125,y+12,190,y+12);
+  doc.setFontSize(8); doc.setTextColor(153); doc.setFont('helvetica','normal');
+  doc.text('Firma Autorizada',52,y+16,{align:'center'});
+  doc.text('Recibido por',157,y+16,{align:'center'});
+  y+=22;
+
+  doc.setFillColor(240,244,248); doc.rect(0,y,W,8,'F');
+  doc.setFontSize(7); doc.setTextColor(170);
+  doc.text(`${EMP.nombre}  ·  RNC: ${EMP.rnc}  ·  ${EMP.tel}  ·  ${EMP.email}  ·  Página 1`,W/2,y+5,{align:'center'});
+
+  doc.save(`SEMAR-${d.tipo.toUpperCase()}-${d.num||'DOC'}.pdf`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PANEL
+// ═══════════════════════════════════════════════════════════
+function renderPanel(){
+  const arr=getFacturas();
+  document.getElementById('m-total').textContent=arr.length;
+  document.getElementById('m-fact').textContent=arr.filter(d=>d.tipo==='factura').length;
+  document.getElementById('m-cot').textContent=arr.filter(d=>d.tipo==='cotizacion').length;
+  const monto=arr.reduce((s,d)=>s+(d.total||0),0);
+  document.getElementById('m-monto').textContent='RD$'+monto.toLocaleString('es-DO',{minimumFractionDigits:2});
+  const el=document.getElementById('panel-lista');
+  if(!arr.length){ el.innerHTML='<div class="empty">No hay documentos. Crea tu primera factura.</div>'; return; }
+  el.innerHTML=arr.slice(0,8).map(d=>`
+    <div class="item-historial">
+      <span class="badge badge-${d.tipo}">${d.tipo==='factura'?'FAC':'COT'}</span>
+      <div style="flex:2">
+        <div style="font-weight:700">${escH(d.num)} · ${escH(d.cliente?.nombre||'—')}</div>
+        <div style="font-size:11px;color:#888">${d.fecha||'—'}${d.proyecto?' · '+escH(d.proyecto):''}</div>
+      </div>
+      <span style="font-weight:700;color:var(--azul)">${fmt(d.total)}</span>
+      <span class="badge badge-${d.estado}">${d.estado}</span>
+      <button class="btn btn-sm" onclick="verDoc(${d.id})">Ver</button>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// HISTORIAL
+// ═══════════════════════════════════════════════════════════
+function renderHistorial(){
+  const ft=document.getElementById('f-tipo').value;
+  const fe=document.getElementById('f-estado').value;
+  const fb=(document.getElementById('f-buscar').value||'').toLowerCase();
+  let arr=getFacturas().filter(d=>{
+    if(ft&&d.tipo!==ft) return false;
+    if(fe&&d.estado!==fe) return false;
+    if(fb&&!((d.num||'').toLowerCase().includes(fb)||(d.cliente?.nombre||'').toLowerCase().includes(fb)||(d.proyecto||'').toLowerCase().includes(fb))) return false;
+    return true;
+  });
+  const el=document.getElementById('historial-lista');
+  if(!arr.length){ el.innerHTML='<div class="empty">No hay documentos que coincidan.</div>'; return; }
+  el.innerHTML=arr.map(d=>`
+    <div class="item-historial">
+      <span class="badge badge-${d.tipo}">${d.tipo==='factura'?'FAC':'COT'}</span>
+      <div style="flex:2">
+        <div style="font-weight:700">${escH(d.num)}${d.ncf?' · NCF: '+escH(d.ncf):''}</div>
+        <div style="font-size:11px;color:#888">${escH(d.cliente?.nombre||'—')}${d.proyecto?' · '+escH(d.proyecto):''}</div>
+        <div style="font-size:11px;color:#aaa">${d.fecha||''}</div>
+        ${d.convertida?'<span style="font-size:10px;color:var(--verde)">✔ Convertida a factura</span>':''}
+      </div>
+      <div style="text-align:right;min-width:100px">
+        <div style="font-weight:700;color:var(--azul)">${fmt(d.total)}</div>
+        ${d.restante>0?`<div style="font-size:11px;color:var(--rojo)">Restante: ${fmt(d.restante)}</div>`:''}
+      </div>
+      <span class="badge badge-${d.estado}" style="cursor:pointer" title="Clic para cambiar estado" onclick="cambiarEstado(${d.id})">${d.estado}</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="verDoc(${d.id})">👁</button>
+        <button class="btn btn-sm btn-edit" onclick="editarDoc(${d.id})" title="Editar">✏️</button>
+        ${d.tipo==='cotizacion'&&!d.convertida?`<button class="btn btn-sm btn-success" onclick="convertirAFactura(${d.id})" title="Convertir a factura">→ Factura</button>`:''}
+        <button class="btn btn-sm" onclick="generarPDFById(${d.id})" title="Descargar PDF">⬇</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarDoc(${d.id})" title="Eliminar">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function cambiarEstado(id){
+  const arr=getFacturas(); const d=arr.find(x=>x.id===id); if(!d) return;
+  const estados=['pendiente','pagado','vencido'];
+  d.estado=estados[(estados.indexOf(d.estado)+1)%estados.length];
+  saveFacturas(arr); renderHistorial(); renderPanel();
+  showToast('Estado actualizado: '+d.estado);
+}
+
+function verDoc(id){
+  const d=getFacturas().find(x=>x.id===id); if(!d) return;
+  datosPrev=d;
+  document.getElementById('modal-body').innerHTML=buildHTML(d);
+  document.getElementById('modal').classList.add('visible');
+}
+
+function generarPDFById(id){
+  const d=getFacturas().find(x=>x.id===id); if(!d) return;
+  datosPrev=d; generarPDF();
+}
+
+function eliminarDoc(id){
+  if(!confirm('¿Eliminar este documento permanentemente?')) return;
+  saveFacturas(getFacturas().filter(x=>x.id!==id));
+  renderHistorial(); renderPanel();
+  showToast('🗑 Documento eliminado');
+}
+
+// ═══════════════════════════════════════════════════════════
+// MÓDULO CLIENTES
+// ═══════════════════════════════════════════════════════════
+function renderClientes(){
+  const buscar=(document.getElementById('buscar-cliente')?.value||'').toLowerCase();
+  let arr=getClientes().filter(c=>
+    !buscar||
+    c.nombre.toLowerCase().includes(buscar)||
+    (c.rnc&&c.rnc.includes(buscar))
+  );
+  const el=document.getElementById('lista-clientes');
+  if(!arr.length){ el.innerHTML='<div class="empty">No hay clientes registrados. Agrega uno o crea una factura.</div>'; return; }
+  el.innerHTML=arr.map(c=>`
+    <div class="cliente-card">
+      <div class="cliente-avatar">${(c.nombre||'?')[0].toUpperCase()}</div>
+      <div class="cliente-info">
+        <div class="cliente-nombre">${escH(c.nombre)}</div>
+        <div class="cliente-rnc">${c.rnc||'Sin RNC'}</div>
+        <div style="font-size:11px;color:#888;margin-top:2px">
+          ${c.telefono?'📞 '+escH(c.telefono):''}
+          ${c.email?' · ✉ '+escH(c.email):''}
+          ${c.ciudad?' · 📍 '+escH(c.ciudad):''}
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="btn btn-sm btn-add" onclick="usarClienteEnFactura(${c.id})" title="Nueva factura con este cliente">+ Factura</button>
+        <button class="btn btn-sm btn-edit" onclick="abrirModalCliente(${c.id})" title="Editar">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarCliente(${c.id})" title="Eliminar">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function abrirModalCliente(id){
+  const m=document.getElementById('modal-cliente');
+  document.getElementById('cli-edit-id').value=id||'';
+  if(id){
+    const c=getClientes().find(x=>x.id===id); if(!c) return;
+    document.getElementById('modal-cli-titulo').textContent='✏️ Editar cliente';
+    document.getElementById('cli-edit-nombre').value=c.nombre||'';
+    document.getElementById('cli-edit-rnc').value=c.rnc||'';
+    document.getElementById('cli-edit-tel').value=c.telefono||'';
+    document.getElementById('cli-edit-email').value=c.email||'';
+    document.getElementById('cli-edit-dir').value=c.direccion||'';
+    document.getElementById('cli-edit-ciudad').value=c.ciudad||'';
+    document.getElementById('cli-edit-notas').value=c.notas||'';
+  } else {
+    document.getElementById('modal-cli-titulo').textContent='👤 Nuevo cliente';
+    ['cli-edit-nombre','cli-edit-rnc','cli-edit-tel','cli-edit-email','cli-edit-dir','cli-edit-ciudad','cli-edit-notas'].forEach(i=>document.getElementById(i).value='');
+  }
+  m.classList.add('visible');
+}
+
+function cerrarModalCliente(){ document.getElementById('modal-cliente').classList.remove('visible'); }
+
+function guardarClienteModal(){
+  const nombre=document.getElementById('cli-edit-nombre').value.trim();
+  if(!nombre){ alert('El nombre es requerido.'); return; }
+  const id=document.getElementById('cli-edit-id').value;
+  const arr=getClientes();
+  const data={
+    nombre, rnc:document.getElementById('cli-edit-rnc').value.trim(),
+    telefono:document.getElementById('cli-edit-tel').value.trim(),
+    email:document.getElementById('cli-edit-email').value.trim(),
+    direccion:document.getElementById('cli-edit-dir').value.trim(),
+    ciudad:document.getElementById('cli-edit-ciudad').value.trim(),
+    notas:document.getElementById('cli-edit-notas').value.trim()
+  };
+  if(id){
+    const idx=arr.findIndex(x=>x.id==id);
+    if(idx>=0){ arr[idx]={...arr[idx],...data}; }
+    showToast('✅ Cliente actualizado');
+  } else {
+    arr.unshift({...data, id:Date.now(), creado:new Date().toISOString()});
+    showToast('✅ Cliente guardado');
+  }
+  saveClientes(arr);
+  cerrarModalCliente();
+  renderClientes();
+}
+
+function eliminarCliente(id){
+  if(!confirm('¿Eliminar este cliente?')) return;
+  saveClientes(getClientes().filter(x=>x.id!==id));
+  renderClientes(); showToast('🗑 Cliente eliminado');
+}
+
+function usarClienteEnFactura(id){
+  const c=getClientes().find(x=>x.id===id); if(!c) return;
+  document.getElementById('cli-nombre').value=c.nombre||'';
+  document.getElementById('cli-rnc').value=c.rnc||'';
+  document.getElementById('cli-tel').value=c.telefono||'';
+  document.getElementById('cli-email').value=c.email||'';
+  document.getElementById('cli-dir').value=c.direccion||'';
+  irA('nueva',document.querySelectorAll('.topbar nav button')[1]);
+  showToast('👤 Cliente cargado en nueva factura');
+}
+
+// ═══════════════════════════════════════════════════════════
+// INICIO
+// ═══════════════════════════════════════════════════════════
+const hoy=new Date().toISOString().split('T')[0];
+document.getElementById('doc-fecha').value=hoy;
+const v30=new Date(); v30.setDate(v30.getDate()+30);
+document.getElementById('doc-vence').value=v30.toISOString().split('T')[0];
+renderItems();
+renderPanel();
+setSyncOk();
+</script>
+</body>
+</html>
